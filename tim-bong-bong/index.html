@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minigame Chọn Chữ Cái</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+        }
+        #gameCanvas {
+            border: 2px solid #333;
+            background-color: #fff;
+        }
+        #targetLetter {
+            font-size: 48px;
+            margin: 20px;
+            padding: 10px;
+            border: 2px solid #333;
+            background-color: #e0e0e0;
+        }
+        #score {
+            font-size: 24px;
+            margin: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="score">Điểm: 0</div>
+    <div id="targetLetter"></div>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const targetLetterDiv = document.getElementById('targetLetter');
+        const scoreDiv = document.getElementById('score');
+
+        const letters = ['A', 'Ă', 'Â', 'B', 'C', 'D', 'Đ', 'E', 'Ê', 'G', 'H', 'I', 'K', 'L', 'M', 'N', 'O', 'Ô', 'Ơ', 'P', 'Q', 'R', 'S', 'T', 'U', 'Ư', 'V', 'X', 'Y'];
+        const targetLetters = ['E', 'Ê'];
+        let score = 0;
+        let targetLetter = '';
+        let circles = [];
+        let particles = [];
+
+        class Circle {
+            constructor(x, y, radius, letter, dx, dy) {
+                this.x = x;
+                this.y = y;
+                this.radius = radius;
+                this.letter = letter;
+                this.dx = dx;
+                this.dy = dy;
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = '#4CAF50';
+                ctx.fill();
+                ctx.closePath();
+
+                ctx.font = '20px Arial';
+                ctx.fillStyle = '#fff';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(this.letter, this.x, this.y);
+            }
+
+            update() {
+                this.x += this.dx;
+                this.y += this.dy;
+
+                if (this.x + this.radius > canvas.width || this.x - this.radius < 0) {
+                    this.dx = -this.dx;
+                }
+                if (this.y + this.radius > canvas.height || this.y - this.radius < 0) {
+                    this.dy = -this.dy;
+                }
+            }
+        }
+
+        class Particle {
+            constructor(x, y, dx, dy, radius, life) {
+                this.x = x;
+                this.y = y;
+                this.dx = dx;
+                this.dy = dy;
+                this.radius = radius;
+                this.life = life;
+                this.maxLife = life;
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(255, 165, 0, ${this.life / this.maxLife})`;
+                ctx.fill();
+                ctx.closePath();
+            }
+
+            update() {
+                this.x += this.dx;
+                this.y += this.dy;
+                this.life--;
+                this.radius *= 0.95;
+            }
+        }
+
+        function createExplosion(x, y) {
+            for (let i = 0; i < 20; i++) {
+                const dx = (Math.random() - 0.5) * 8;
+                const dy = (Math.random() - 0.5) * 8;
+                const radius = Math.random() * 3 + 2;
+                const life = 30;
+                particles.push(new Particle(x, y, dx, dy, radius, life));
+            }
+        }
+
+        function initGame() {
+            circles = [];
+            const numCircles = 10;
+            for (let i = 0; i < numCircles; i++) {
+                const radius = 30;
+                const x = Math.random() * (canvas.width - 2 * radius) + radius;
+                const y = Math.random() * (canvas.height - 2 * radius) + radius;
+                const dx = (Math.random() - 0.5) * 4;
+                const dy = (Math.random() - 0.5) * 4;
+                const letter = letters[Math.floor(Math.random() * letters.length)];
+                circles.push(new Circle(x, y, radius, letter, dx, dy));
+            }
+            setTargetLetter();
+        }
+
+        function setTargetLetter() {
+            targetLetter = targetLetters[Math.floor(Math.random() * targetLetters.length)];
+            targetLetterDiv.textContent = targetLetter;
+            const correctCircleIndex = Math.floor(Math.random() * circles.length);
+            circles[correctCircleIndex].letter = targetLetter;
+        }
+
+        function createNewCircle() {
+            const radius = 30;
+            const x = Math.random() * (canvas.width - 2 * radius) + radius;
+            const y = Math.random() * (canvas.height - 2 * radius) + radius;
+            const dx = (Math.random() - 0.5) * 4;
+            const dy = (Math.random() - 0.5) * 4;
+            const letter = letters[Math.floor(Math.random() * letters.length)];
+            return new Circle(x, y, radius, letter, dx, dy);
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            circles.forEach(circle => {
+                circle.update();
+                circle.draw();
+            });
+            particles = particles.filter(p => p.life > 0);
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+            requestAnimationFrame(animate);
+        }
+
+        canvas.addEventListener('click', (event) => {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = event.clientX - rect.left;
+            const mouseY = event.clientY - rect.top;
+
+            let clickedIndex = -1;
+            circles.forEach((circle, index) => {
+                const distance = Math.sqrt((mouseX - circle.x) ** 2 + (mouseY - circle.y) ** 2);
+                if (distance < circle.radius) {
+                    clickedIndex = index;
+                    createExplosion(circle.x, circle.y);
+                    if (circle.letter === targetLetter) {
+                        score++;
+                        setTargetLetter();
+                    } else {
+                        score--;
+                    }
+                    scoreDiv.textContent = `Điểm: ${score}`;
+                }
+            });
+
+            if (clickedIndex !== -1) {
+                circles.splice(clickedIndex, 1);
+                circles.push(createNewCircle());
+                if (circles.some(c => c.letter === targetLetter) === false) {
+                    const correctCircleIndex = Math.floor(Math.random() * circles.length);
+                    circles[correctCircleIndex].letter = targetLetter;
+                }
+            }
+        });
+
+        initGame();
+        animate();
+    </script>
+</body>
+</html>
